@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CriticalAsset — OSINT Building Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="[REDACTED_CONN_STRING]://300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --black: #0a0a0f;
+      --black-light: #12121a;
+      --surface: #1a1a26;
+      --surface-light: #222233;
+      --border: rgba(255,255,255,0.06);
+      --border-hover: rgba(255,255,255,0.12);
+      --text-primary: #e8e8ef;
+      --text-secondary: #8888a0;
+      --text-muted: #55556a;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06d6f0;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --glow-blue: rgba(59,130,246,0.15);
+      --glow-cyan: rgba(6,214,240,0.12);
+      --gradient-intel: linear-gradient(135deg, #3b82f6, #06d6f0);
+      --gradient-dark: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%);
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--black);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ═══ GRID OVERLAY ═══ */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ═══ NAVIGATION ═══ */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      padding: 16px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(10,10,15,0.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .nav-brand .logo-mark {
+      width: 32px; height: 32px;
+      border: 2px solid var(--accent-cyan);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .nav-brand .logo-mark::after {
+      content: '';
+      width: 8px; height: 8px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .nav-brand .brand-text {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-primary);
+      letter-spacing: 0.05em;
+    }
+    .nav-brand .brand-sub {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--accent-cyan);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .nav-links {
+      display: flex; align-items: center; gap: 28px;
+      list-style: none;
+    }
+    .nav-links a {
+      text-decoration: none;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--accent-cyan); }
+    .nav-cta {
+      background: transparent;
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan) !important;
+      padding: 8px 20px;
+      border-radius: 4px;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .nav-cta:hover {
+      background: rgba(6,214,240,0.08);
+      box-shadow: 0 0 20px rgba(6,214,240,0.2);
+    }
+
+    /* ═══ HERO ═══ */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 140px 48px 100px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(6,214,240,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-scanline {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--gradient-intel);
+      opacity: 0.6;
+      animation: scanline 4s linear infinite;
+    }
+    @keyframes scanline {
+      0% { transform: translateY(0); opacity: 0.6; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+    .hero-inner {
+      max-width: 900px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-classification {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border: 1px solid rgba(6,214,240,0.3);
+      border-radius: 2px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 36px;
+    }
+    .hero-classification .blink {
+      width: 6px; height: 6px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      animation: pulse-dot 1.5s infinite;
+    }
+    .hero h1 {
+      font-size: clamp(42px, 5.5vw, 72px);
+      font-weight: 800;
+      line-height: 1.05;
+      color: white;
+      margin-bottom: 28px;
+      letter-spacing: -0.03em;
+    }
+    .hero h1 .glow-text {
+      background: var(--gradient-intel);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      max-width: 620px;
+      margin: 0 auto 48px;
+    }
+    .hero-sub strong { color: var(--text-primary); }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-intel {
+      background: var(--gradient-intel);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-intel:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(6,214,240,0.3);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 14px 32px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid var(--border-hover);
+      transition: color 0.2s, border-color 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-ghost:hover { color: white; border-color: rgba(255,255,255,0.3); }
+
+    /* ═══ INTEL BAR ═══ */
+    .intel-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      z-index: 1;
+    }
+    .intel-stat {
+      padding: 40px 32px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .intel-stat:last-child { border-right: none; }
+    .intel-stat .value {
+      font-family: var(--mono);
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      letter-spacing: -0.02em;
+    }
+    .intel-stat .value .unit {
+      font-size: 18px;
+      color: var(--text-muted);
+    }
+    .intel-stat .label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    /* ═══ SECTIONS ═══ */
+    section {
+      padding: 120px 48px;
+      position: relative;
+      z-index: 1;
+    }
+    .section-inner {
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+    .section-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-tag::before {
+      content: '';
+      width: 16px; height: 1px;
+      background: var(--accent-cyan);
+    }
+    .section-title {
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 800;
+      color: white;
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+    .section-desc {
+      font-size: 16px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      max-width: 560px;
+    }
+
+    /* ═══ CAPABILITY CARDS ═══ */
+    .cap-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-top: 56px;
+    }
+    .cap-card {
+      background: var(--black-light);
+      padding: 40px 32px;
+      transition: background 0.3s;
+    }
+    .cap-card:hover { background: var(--surface); }
+    .cap-icon {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    .cap-icon.cyan { background: rgba(6,214,240,0.1); color: var(--accent-cyan); }
+    .cap-icon.blue { background: rgba(59,130,246,0.1); color: var(--accent-blue); }
+    .cap-icon.green { background: rgba(16,185,129,0.1); color: var(--accent-green); }
+    .cap-card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 10px;
+    }
+    .cap-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    /* ═══ AGENT FLEET ═══ */
+    .fleet-section {
+      background: var(--black-light);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .fleet-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .agent-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: 0 0 24px rgba(6,214,240,0.05);
+    }
+    .agent-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .agent-status {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .agent-status.active { background: var(--accent-green); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+    .agent-status.intel { background: var(--accent-cyan); box-shadow: 0 0 6px rgba(6,214,240,0.5); }
+    .agent-status.ops { background: var(--accent-blue); box-shadow: 0 0 6px rgba(59,130,246,0.5); }
+    .agent-status.data { background: var(--accent-amber); box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+    .agent-card h4 {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      letter-spacing: 0.02em;
+    }
+    .agent-card p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .fleet-category {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding-top: 32px;
+      margin-bottom: 8px;
+    }
+    .fleet-category.recon { color: var(--accent-green); }
+    .fleet-category.intelligence { color: var(--accent-cyan); }
+    .fleet-category.ops { color: var(--accent-blue); }
+    .fleet-category.data { color: var(--accent-amber); }
+
+    /* ═══ MISSION SCENARIOS ═══ */
+    .missions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+    .mission-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .mission-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; height: 100%;
+      background: var(--gradient-intel);
+    }
+    .mission-tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      margin-bottom: 12px;
+    }
+    .mission-card h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 16px;
+    }
+    .mission-steps {
+      list-style: none;
+    }
+    .mission-steps li {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 5px 0 5px 20px;
+      position: relative;
+      line-height: 1.5;
+      font-family: var(--mono);
+    }
+    .mission-steps li::before {
+      content: '▸';
+      position: absolute;
+      left: 0;
+      color: var(--accent-green);
+    }
+
+    /* ═══ COVERAGE MAP ═══ */
+    .coverage-section {
+      background: var(--black-light);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+      margin-top: 32px;
+    }
+    .source-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.2s;
+    }
+    .source-chip:hover { border-color: var(--border-hover); }
+    .source-chip .dot {
+      width: 5px; height: 5px;
+      background: var(--accent-green);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ═══ INTEL CATEGORIES ═══ */
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+      margin-top: 32px;
+    }
+    .cat-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cat-chip i {
+      color: var(--accent-cyan);
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    /* ═══ CONFIDENCE TIERS ═══ */
+    .tiers-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 48px;
+    }
+    .tier-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 24px 20px;
+      text-align: center;
+    }
+    .tier-indicator {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      margin: 0 auto 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+    }
+    .tier-indicator.verified { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+    .tier-indicator.exhausted { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+    .tier-indicator.agentic { background: rgba(6,214,240,0.15); color: var(--accent-cyan); }
+    .tier-indicator.manual { background: rgba(245,158,11,0.15); color: var(--accent-amber); }
+    .tier-block h4 {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 4px;
+      letter-spacing: 0.02em;
+    }
+    .tier-block p {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* ═══ IMPACT SECTION ═══ */
+    .impact-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+    .impact-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 24px;
+    }
+    .impact-card h3 {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .impact-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .impact-item i {
+      color: var(--accent-green);
+      font-size: 10px;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+    .impact-item span {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .impact-item strong { color: white; }
+
+    /* ═══ WHY NOW ═══ */
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+    .why-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 24px;
+    }
+    .why-number {
+      font-family: var(--mono);
+      font-size: 48px;
+      font-weight: 800;
+      color: rgba(6,214,240,0.12);
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+    .why-card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 10px;
+    }
+    .why-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ═══ CTA ═══ */
+    .cta-section {
+      text-align: center;
+      padding: 120px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(6,214,240,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .cta-section h2 {
+      font-size: clamp(32px, 4vw, 44px);
+      font-weight: 800;
+      color: white;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+      position: relative;
+    }
+    .cta-section p {
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 480px;
+      margin: 0 auto 40px;
+      position: relative;
+    }
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: relative;
+    }
+
+    /* ═══ FOOTER ═══ */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-brand {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .footer-brand .mark {
+      width: 24px; height: 24px;
+      border: 1.5px solid var(--accent-cyan);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .footer-brand .mark::after {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+    }
+    .footer-brand span {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+    .footer-links {
+      display: flex; gap: 24px;
+    }
+    .footer-links a {
+      font-family: var(--mono);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 11px;
+      letter-spacing: 0.03em;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--text-secondary); }
+    .footer-copy {
+      font-family: var(--mono);
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    /* ═══ TERMINAL DECORATION ═══ */
+    .terminal-block {
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px 24px;
+      margin-top: 40px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+    .terminal-block .prompt { color: var(--accent-green); }
+    .terminal-block .cmd { color: var(--text-primary); }
+    .terminal-block .output { color: var(--text-muted); }
+    .terminal-block .highlight { color: var(--accent-cyan); }
+
+    /* ═══ ANIMATED TERMINAL ═══ */
+    .terminal-live {
+      background: var(--black);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 24px 28px;
+      margin-top: 56px;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.9;
+      position: relative;
+      overflow: hidden;
+      min-height: 280px;
+    }
+    .terminal-live .term-header {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .term-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .term-dot.r { background: #ef4444; }
+    .term-dot.y { background: #f59e0b; }
+    .term-dot.g { background: #10b981; }
+    .term-title { font-size: 10px; color: var(--text-muted); margin-left: 8px; letter-spacing: 0.05em; }
+    .terminal-live #term-output { white-space: pre-wrap; }
+    .terminal-live .cursor {
+      display: inline-block;
+      width: 7px; height: 14px;
+      background: var(--accent-cyan);
+      animation: blink-cursor 0.8s step-end infinite;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+    @keyframes blink-cursor { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .term-replay {
+      position: absolute;
+      bottom: 16px; right: 16px;
+      background: transparent;
+      border: 1px solid var(--border-hover);
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .term-replay:hover { color: var(--accent-cyan); border-color: var(--accent-cyan); }
+
+    /* ═══ RESPONSIVE ═══ */
+    @media (max-width: 900px) {
+      .cap-grid, .missions-grid, .impact-grid, .why-grid {
+        grid-template-columns: 1fr;
+      }
+      .intel-bar { grid-template-columns: repeat(2, 1fr); }
+      .tiers-row { grid-template-columns: repeat(2, 1fr); }
+      .nav-links { display: none; }
+      section { padding: 80px 24px; }
+      .hero { padding: 120px 24px 80px; }
+      .footer { flex-direction: column; gap: 20px; text-align: center; }
+    }
+
+    /* ═══ ANIMATIONS ═══ */
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease-out, transform 0.5s ease-out; }
+    .reveal.visible { opacity: 1; transform: none; }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <!-- NAVIGATION -->
+  <nav class="nav">
+    <a href="#" class="nav-brand">
+      <div class="logo-mark"></div>
+      <div>
+        <div class="brand-text">CRITICALASSET</div>
+        <div class="brand-sub">OSINT • Building Intelligence</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#capabilities">Capabilities</a></li>
+      <li><a href="#fleet">Agent Fleet</a></li>
+      <li><a href="#missions">Missions</a></li>
+      <li><a href="#coverage">Coverage</a></li>
+      <li><a href="#cta" class="nav-cta">Request Access</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-scanline"></div>
+    <div class="hero-inner">
+      <div class="hero-classification">
+        <div class="blink"></div>
+        CASTLE Platform • 14 Autonomous Agents • OSINT Grade
+      </div>
+      <h1>Every Building<br>Has Secrets.<br><span class="glow-text">We Extract Them.</span></h1>
+      <p class="hero-sub">
+        <strong>14 autonomous OSINT agents</strong> deploy across 60+ US jurisdictions simultaneously — harvesting permits, violations, inspections, ownership records, and 50 years of building history. Verified. Cited. In under two minutes.
+      </p>
+      <div class="hero-actions">
+        <a href="#cta" class="btn-intel">
+          <i class="fa-solid fa-satellite-dish" style="font-size: 11px;"></i>
+          Deploy a Recon
+        </a>
+        <a href="#missions" class="btn-ghost">
+          <i class="fa-solid fa-terminal" style="font-size: 11px;"></i>
+          See Mission Logs
+        </a>
+      </div>
+
+      <!-- Terminal preview -->
+      <div class="terminal-live" id="terminal-live">
+        <div class="term-header">
+          <div class="term-dot r"></div>
+          <div class="term-dot y"></div>
+          <div class="term-dot g"></div>
+          <span class="term-title">castle — recon terminal</span>
+        </div>
+        <div id="term-output"></div>
+        <button class="term-replay" id="term-replay" style="display:none;" onclick="runTerminal()">↻ REPLAY</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTEL BAR -->
+  <div class="intel-bar">
+    <div class="intel-stat">
+      <div class="value">97<span class="unit">s</span></div>
+      <div class="label">Avg. Recon Time</div>
+    </div>
+    <div class="intel-stat">
+      <div class="value">76</div>
+      <div class="label">Data Sources</div>
+    </div>
+    <div class="intel-stat">
+      <div class="value">14</div>
+      <div class="label">Active Agents</div>
+    </div>
+    <div class="intel-stat">
+      <div class="value">60<span class="unit">+</span></div>
+      <div class="label">Jurisdictions</div>
+    </div>
+  </div>
+
+  <!-- CAPABILITIES -->
+  <section id="capabilities">
+    <div class="section-inner">
+      <div class="section-tag">Core Capabilities</div>
+      <h2 class="section-title">Open-Source Intelligence.<br>Building-Grade Precision.</h2>
+      <p class="section-desc">Every finding verified against its source. Every gap disclosed. Every agent accountable.</p>
+
+      <div class="cap-grid">
+        <div class="cap-card reveal">
+          <div class="cap-icon cyan"><i class="fa-solid fa-satellite-dish"></i></div>
+          <h3>Autonomous Recon</h3>
+          <p>Enter an address. 14 agents fan out across every relevant jurisdiction — DOB, HPD, ECB, FDNY, DOT, DEP, environmental, ownership. Results stream back in real-time. A complete intelligence dossier in 97 seconds.</p>
+        </div>
+        <div class="cap-card reveal">
+          <div class="cap-icon blue"><i class="fa-solid fa-fingerprint"></i></div>
+          <h3>Source-Verified Intelligence</h3>
+          <p>Every finding links to its origin record. Anti-hallucination gates reject unverifiable claims. Click any citation — you're looking at the government's own data. Forensic-grade attribution.</p>
+        </div>
+        <div class="cap-card reveal">
+          <div class="cap-icon green"><i class="fa-solid fa-eye"></i></div>
+          <h3>Transparent Confidence</h3>
+          <p>Four confidence tiers: Verified, Exhausted, Agentic, Manual Required. You always know the intelligence quality — what was confirmed, what was best-effort, and where human operators should follow up.</p>
+        </div>
+      </div>
+
+      <!-- Confidence Tiers -->
+      <div class="tiers-row">
+        <div class="tier-block reveal">
+          <div class="tier-indicator verified"><i class="fa-solid fa-shield-check"></i></div>
+          <h4>VERIFIED</h4>
+          <p>Official count confirmed — complete extraction</p>
+        </div>
+        <div class="tier-block reveal">
+          <div class="tier-indicator exhausted"><i class="fa-solid fa-layer-group"></i></div>
+          <h4>EXHAUSTED</h4>
+          <p>All pagination consumed — comprehensive sweep</p>
+        </div>
+        <div class="tier-block reveal">
+          <div class="tier-indicator agentic"><i class="fa-solid fa-robot"></i></div>
+          <h4>AGENTIC</h4>
+          <p>AI-navigated portal — high confidence</p>
+        </div>
+        <div class="tier-block reveal">
+          <div class="tier-indicator manual"><i class="fa-solid fa-user-secret"></i></div>
+          <h4>MANUAL</h4>
+          <p>Barrier detected — flagged for human operator</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENT FLEET -->
+  <section class="fleet-section" id="fleet">
+    <div class="section-inner">
+      <div class="section-tag">Agent Fleet Status</div>
+      <h2 class="section-title">14 Agents. Always Deployed.</h2>
+      <p class="section-desc">Each agent is a specialist — trained on one domain, operating autonomously, reporting to a central orchestrator.</p>
+
+      <div class="fleet-category recon">// RECONNAISSANCE</div>
+      <div class="fleet-grid">
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status active"></div><h4>ACQUISITION</h4></div>
+          <p>Mission controller — orchestrates agents, manages budgets & timeouts</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status active"></div><h4>ADAPTERS</h4></div>
+          <p>76 data source connections across 6 platform families</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status active"></div><h4>CATALOG</h4></div>
+          <p>Jurisdiction mapping — knows which sources cover which targets</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status active"></div><h4>INGESTION</h4></div>
+          <p>Raw data normalization — structures findings from any format</p>
+        </div>
+      </div>
+
+      <div class="fleet-category intelligence">// INTELLIGENCE</div>
+      <div class="fleet-grid">
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status intel"></div><h4>KNOWLEDGE</h4></div>
+          <p>Total recall — connects patterns across millions of records</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status intel"></div><h4>BUILDING HISTORY</h4></div>
+          <p>50 years of OSINT — fires, sales, litigation, structural events</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status intel"></div><h4>ENRICHMENT</h4></div>
+          <p>Risk scoring — system impact analysis on raw findings</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status intel"></div><h4>SEMANTIC</h4></div>
+          <p>Deduplication & pattern detection — clusters related findings</p>
+        </div>
+      </div>
+
+      <div class="fleet-category ops">// OPERATIONS</div>
+      <div class="fleet-grid">
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status ops"></div><h4>SEARCH</h4></div>
+          <p>Natural language queries over the entire intelligence database</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status ops"></div><h4>CRM</h4></div>
+          <p>HubSpot integration — intelligence flows into deal workflows</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status ops"></div><h4>PRICING</h4></div>
+          <p>Extracts pricing factors, runs rule-based risk indications</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status ops"></div><h4>ORCHESTRATION</h4></div>
+          <p>Portfolio-wide campaigns — batch recon across hundreds of targets</p>
+        </div>
+      </div>
+
+      <div class="fleet-category data">// DATA INFRASTRUCTURE</div>
+      <div class="fleet-grid">
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status data"></div><h4>LAKE</h4></div>
+          <p>Bulk public dataset storage & profiling</p>
+        </div>
+        <div class="agent-card reveal">
+          <div class="agent-header"><div class="agent-status data"></div><h4>GRAPHQL CATALOG</h4></div>
+          <p>Product, parts & vendor catalog synchronization</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSIONS -->
+  <section id="missions">
+    <div class="section-inner">
+      <div class="section-tag">Mission Scenarios</div>
+      <h2 class="section-title">Deployed. Verified. Delivered.</h2>
+      <p class="section-desc">From target acquisition to actionable intelligence — automated end-to-end.</p>
+
+      <div class="missions-grid">
+        <div class="mission-card reveal">
+          <div class="mission-tag">Mission 01 — Target Recon</div>
+          <h3>New Submission Intel</h3>
+          <ul class="mission-steps">
+            <li>Target acquired: "123 Broadway, NYC"</li>
+            <li>14 agents deployed across 11 jurisdictions</li>
+            <li>3 open violations detected</li>
+            <li>Elevator Cat1 inspection failure flagged</li>
+            <li>2019 fire incident surfaced from history</li>
+            <li>Intelligence dossier compiled → CRM</li>
+          </ul>
+        </div>
+        <div class="mission-card reveal">
+          <div class="mission-tag">Mission 02 — Surveillance</div>
+          <h3>Portfolio Monitoring</h3>
+          <ul class="mission-steps">
+            <li>500 targets under continuous watch</li>
+            <li>Weekly delta scan initiated</li>
+            <li>15 properties flagged: new activity</li>
+            <li>Alert: New HPD violation (Class C)</li>
+            <li>Alert: Sprinkler inspection overdue</li>
+            <li>Loss prevention dispatched pre-incident</li>
+          </ul>
+        </div>
+        <div class="mission-card reveal">
+          <div class="mission-tag">Mission 03 — Refresh</div>
+          <h3>Renewal Intelligence</h3>
+          <ul class="mission-steps">
+            <li>Renewal T-60 days — auto-refresh triggered</li>
+            <li>Diff: 2 new permits, 1 violation resolved</li>
+            <li>Elevator modernization completed</li>
+            <li>Risk profile improvement detected</li>
+            <li>5% rate reduction recommended</li>
+            <li>Retention optimized with real data</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COVERAGE -->
+  <section class="coverage-section" id="coverage">
+    <div class="section-inner">
+      <div class="section-tag">Operational Coverage</div>
+      <h2 class="section-title">60+ Jurisdictions. 13 Intel Categories.</h2>
+      <p class="section-desc">Active connections to government data portals. For unconnected targets, agents navigate autonomously.</p>
+
+      <h3 style="font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-green); margin-top: 48px; margin-bottom: 16px;">Connected Platforms</h3>
+      <div class="source-grid">
+        <div class="source-chip reveal"><span class="dot"></span>Socrata (25+ cities)</div>
+        <div class="source-chip reveal"><span class="dot"></span>ArcGIS (20+ cities)</div>
+        <div class="source-chip reveal"><span class="dot"></span>Accela / Tyler (10+)</div>
+        <div class="source-chip reveal"><span class="dot"></span>CKAN & CARTO</div>
+        <div class="source-chip reveal"><span class="dot"></span>OnBase & eTRAKiT</div>
+        <div class="source-chip reveal"><span class="dot"></span>Cal/OSHA, DTSC, CSLB</div>
+        <div class="source-chip reveal"><span class="dot"></span>Texas — TCEQ, TDLR</div>
+        <div class="source-chip reveal"><span class="dot"></span>Synthesized Agentic (any US city)</div>
+      </div>
+
+      <h3 style="font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-cyan); margin-top: 48px; margin-bottom: 16px;">Intelligence Categories</h3>
+      <div class="categories-grid">
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Construction Permits</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Violations</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Inspections</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Code Findings</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Fire / Life Safety</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Operating Permits</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Ownership (ACRIS)</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Tax Records</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Environmental</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Compliance (LL11/84/97)</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Elevators</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Boilers</div>
+        <div class="cat-chip reveal"><i class="fa-solid fa-crosshairs"></i> Building History (50yr)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMPACT -->
+  <section id="impact">
+    <div class="section-inner">
+      <div class="section-tag">Operational Impact</div>
+      <h2 class="section-title">The Intelligence Advantage.</h2>
+      <p class="section-desc">Measurable force multiplication across underwriting, risk, and operations.</p>
+
+      <div class="impact-grid">
+        <div class="impact-card reveal">
+          <h3>// Underwriting</h3>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>4 hours → 97 seconds</strong> per target</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>3.2x deal velocity</strong> — faster intelligence, faster close</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>Zero blind spots</strong> — systematic coverage</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>Audit-ready</strong> — every finding traceable to source</span></div>
+        </div>
+        <div class="impact-card reveal">
+          <h3>// Risk Management</h3>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>Pre-loss intelligence</strong> — violations caught before claims</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>Portfolio surveillance</strong> — systemic risk detection</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>Equipment lifecycle</strong> — aging systems flagged</span></div>
+        </div>
+        <div class="impact-card reveal">
+          <h3>// Operations</h3>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>80% cost reduction</strong> in research labor</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>10x throughput</strong> — same team, more targets</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>Zero attrition loss</strong> — institutional memory persists</span></div>
+          <div class="impact-item"><i class="fa-solid fa-bolt"></i><span><strong>Self-improving</strong> — smarter with every deployment</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY NOW -->
+  <section style="border-top: 1px solid var(--border);">
+    <div class="section-inner">
+      <div class="section-tag">Strategic Window</div>
+      <h2 class="section-title">Three Forces Converging.</h2>
+      <div class="why-grid">
+        <div class="why-card reveal">
+          <div class="why-number">01</div>
+          <h3>AI Agents Can Navigate the Open Web</h3>
+          <p>LLMs + autonomous web agents can now read, navigate, and extract from any public portal. This capability didn't exist 24 months ago.</p>
+        </div>
+        <div class="why-card reveal">
+          <div class="why-number">02</div>
+          <h3>Cities Are Publishing Data at Scale</h3>
+          <p>More jurisdictions publishing via APIs and open data portals every quarter. The intelligence surface area is expanding exponentially.</p>
+        </div>
+        <div class="why-card reveal">
+          <div class="why-number">03</div>
+          <h3>Manual Research Is Unsustainable</h3>
+          <p>Rising combined ratios. Margin pressure. Carriers need to price with precision and operate at speed. Human-only research can't scale.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="cta">
+    <h2>Ready to Deploy<br>Building Intelligence?</h2>
+    <p>Run your first recon — any NYC property — in seconds. No commitment. Full intelligence report.</p>
+    <div class="cta-buttons">
+      <a href="mailto:casey@criticalasset.com?subject=CriticalAsset — Deploy Recon" class="btn-intel">
+        <i class="fa-solid fa-satellite-dish" style="font-size: 11px;"></i>
+        Deploy First Recon — Free
+      </a>
+      <a href="mailto:casey@criticalasset.com?subject=CriticalAsset — 30 Day Pilot" class="btn-ghost">
+        Request 30-Day Pilot
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <div class="mark"></div>
+      <span>CRITICALASSET</span>
+    </div>
+    <div class="footer-links">
+      <a href="#capabilities">Capabilities</a>
+      <a href="#fleet">Fleet</a>
+      <a href="#coverage">Coverage</a>
+      <a href="mailto:casey@criticalasset.com">Contact</a>
+    </div>
+    <div class="footer-copy">© 2026 CriticalAsset. OSINT Building Intelligence.</div>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script>
+    // Reveal on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add('visible');
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    // Animated terminal
+    const termLines = [
+      { type: 'prompt', text: 'castle@recon ~$ ' },
+      { type: 'cmd', text: 'deploy --target "123 Broadway, NYC" --depth full', delay: 40 },
+      { type: 'break' },
+      { type: 'output', text: '[00:01] Initializing CASTLE recon protocol...', delay: 600 },
+      { type: 'break' },
+      { type: 'output', text: '[00:02] Target acquired: 123 Broadway, New York, NY 10006', delay: 400 },
+      { type: 'output', text: '[00:03] Jurisdiction mapping: 11 agencies identified', delay: 350 },
+      { type: 'output', text: '[00:04] Dispatching 14 agents...', delay: 300 },
+      { type: 'break' },
+      { type: 'highlight', text: '[00:08] ▸ AGENT::DOB         → 47 permits extracted', delay: 500 },
+      { type: 'highlight', text: '[00:14] ▸ AGENT::HPD         → 3 open violations (Class C)', delay: 450 },
+      { type: 'highlight', text: '[00:21] ▸ AGENT::FDNY        → Sprinkler system: COMPLIANT', delay: 400 },
+      { type: 'highlight', text: '[00:28] ▸ AGENT::ELEVATOR    → Cat1 inspection: FAILED ⚠', delay: 450 },
+      { type: 'highlight', text: '[00:35] ▸ AGENT::ECB         → 2 open findings ($15K penalties)', delay: 400 },
+      { type: 'highlight', text: '[00:41] ▸ AGENT::ENVIRO      → No active remediation', delay: 350 },
+      { type: 'highlight', text: '[00:48] ▸ AGENT::HISTORY     → 2019 fire incident located', delay: 450 },
+      { type: 'highlight', text: '[00:55] ▸ AGENT::OWNERSHIP   → Last transfer: 2017 ($42M)', delay: 400 },
+      { type: 'highlight', text: '[01:02] ▸ AGENT::BOILER      → Annual inspection: CURRENT', delay: 350 },
+      { type: 'highlight', text: '[01:09] ▸ AGENT::COMPLIANCE  → LL84 filed, LL97 pending', delay: 400 },
+      { type: 'break' },
+      { type: 'output', text: '[01:22] All agents reporting. Deduplicating findings...', delay: 500 },
+      { type: 'output', text: '[01:28] Enrichment complete. Risk score computed.', delay: 400 },
+      { type: 'break' },
+      { type: 'success', text: '[01:37] ✓ RECON COMPLETE — 97 seconds. 143 findings. Report compiled.', delay: 600 },
+      { type: 'break' },
+      { type: 'prompt', text: 'castle@recon ~$ ' },
+      { type: 'cmd', text: 'status', delay: 60 },
+      { type: 'break' },
+      { type: 'success', text: '  Intelligence dossier ready. 4 hours of manual research eliminated.', delay: 0 },
+    ];
+
+    const termOutput = document.getElementById('term-output');
+    const replayBtn = document.getElementById('term-replay');
+    let termRunning = false;
+
+    function getColor(type) {
+      switch(type) {
+        case 'prompt': return 'var(--accent-green)';
+        case 'cmd': return 'var(--text-primary)';
+        case 'highlight': return 'var(--accent-cyan)';
+        case 'success': return 'var(--accent-green)';
+        default: return 'var(--text-muted)';
+      }
+    }
+
+    async function typeText(container, text, color, charDelay) {
+      const span = document.createElement('span');
+      span.style.color = color;
+      container.appendChild(span);
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor';
+      container.appendChild(cursor);
+      for (let i = 0; i < text.length; i++) {
+        span.textContent += text[i];
+        await new Promise(r => setTimeout(r, charDelay));
+      }
+      cursor.remove();
+    }
+
+    async function runTerminal() {
+      if (termRunning) return;
+      termRunning = true;
+      replayBtn.style.display = 'none';
+      termOutput.innerHTML = '';
+      for (const line of termLines) {
+        if (line.type === 'break') {
+          termOutput.appendChild(document.createElement('br'));
+          await new Promise(r => setTimeout(r, 80));
+        } else {
+          const charDelay = line.delay || 20;
+          await typeText(termOutput, line.text, getColor(line.type), line.type === 'cmd' ? charDelay : 8);
+          if (line.type !== 'prompt') {
+            termOutput.appendChild(document.createElement('br'));
+            await new Promise(r => setTimeout(r, line.delay || 200));
+          }
+        }
+      }
+      termRunning = false;
+      replayBtn.style.display = 'block';
+    }
+
+    // Auto-run when terminal scrolls into view
+    const termEl = document.getElementById('terminal-live');
+    const termObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !termRunning && termOutput.innerHTML === '') {
+        runTerminal();
+        termObserver.unobserve(termEl);
+      }
+    }, { threshold: 0.5 });
+    termObserver.observe(termEl);
+  </script>
+</body>
+</html>
