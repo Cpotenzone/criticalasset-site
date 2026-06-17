@@ -857,9 +857,12 @@
       <li><a href="#fleet">Agent Fleet</a></li>
       <li><a href="#missions">Missions</a></li>
       <li><a href="#coverage">Coverage</a></li>
-      <li><a href="#cta" class="nav-cta">Request Access</a></li>
+      <li><a href="#cta" class="nav-cta" id="nav-signin" onclick="signInWithGoogle(event)">Sign In</a></li>
     </ul>
   </nav>
+
+  <!-- Auth Status Banner (hidden by default) -->
+  <div id="auth-banner" style="display:none; position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:1001; padding:12px 24px; border-radius:8px; font-size:13px; font-family:var(--mono); backdrop-filter:blur(12px); border:1px solid var(--border); max-width:480px; text-align:center;"></div>
 
   <!-- HERO -->
   <section class="hero">
@@ -1335,6 +1338,67 @@
       }
     }, { threshold: 0.5 });
     termObserver.observe(termEl);
+  <!-- Firebase Auth -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyChr3m4mnVkYwVm5ZnC8BhEAqWO74rR5W4",
+      authDomain: "casey-genmedia.firebaseapp.com",
+      projectId: "casey-genmedia",
+      appId: "1:128509221012:web:5bd73a95aea4b7a2837c81"
+    });
+
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+    const ALLOWED_DOMAINS = ["criticalasset.com", "insuremep.com", "ibaseit.com"];
+    const CASTLE_URL = "https://castle-web-ekchl3epoq-uw.a.run.app";
+
+    function getDomain(email) { return email.split("@")[1]; }
+
+    function showBanner(msg, type) {
+      const b = document.getElementById("auth-banner");
+      b.style.display = "block";
+      b.textContent = msg;
+      b.style.background = type === "error" ? "rgba(239,68,68,0.15)" : "rgba(16,185,129,0.15)";
+      b.style.borderColor = type === "error" ? "rgba(239,68,68,0.4)" : "rgba(16,185,129,0.4)";
+      b.style.color = type === "error" ? "#fca5a5" : "#6ee7b7";
+      if (type === "error") setTimeout(() => { b.style.display = "none"; }, 5000);
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      const btn = document.getElementById("nav-signin");
+      if (user && ALLOWED_DOMAINS.includes(getDomain(user.email))) {
+        btn.textContent = "Enter Platform →";
+        btn.onclick = (e) => { e.preventDefault(); window.location.href = CASTLE_URL; };
+      } else if (user) {
+        signOut(auth);
+        showBanner("Access restricted to authorized organizations.", "error");
+      } else {
+        btn.textContent = "Sign In";
+        btn.onclick = (e) => { e.preventDefault(); signInWithGoogle(e); };
+      }
+    });
+
+    window.signInWithGoogle = async function(e) {
+      if (e) e.preventDefault();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const domain = getDomain(result.user.email);
+        if (!ALLOWED_DOMAINS.includes(domain)) {
+          await signOut(auth);
+          showBanner("Access restricted to authorized organizations. Contact casey@criticalasset.com for access.", "error");
+        } else {
+          showBanner(`Authenticated as ${result.user.email}. Redirecting...`, "success");
+          setTimeout(() => { window.location.href = CASTLE_URL; }, 1200);
+        }
+      } catch (err) {
+        if (err.code !== "auth/popup-closed-by-user") {
+          showBanner("Sign-in failed. Please try again.", "error");
+        }
+      }
+    };
   </script>
 </body>
 </html>
